@@ -7,7 +7,7 @@ pub fn get_hello() {
 
 pub fn user_routes(cfg: &mut web::ServiceConfig) {
     cfg.service(
-        web::scope("/user")
+        web::scope("/users")
             .route("/{userid}", web::get().to(user_controller::get_user))
             .route("", web::post().to(user_controller::add_user)),
     );
