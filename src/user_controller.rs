@@ -1,4 +1,4 @@
-use actix_web::{web, Responder, Result};
+use actix_web::{get, web, HttpResponse, Responder, Result};
 
 use serde::Deserialize;
 
@@ -8,9 +8,9 @@ pub struct User {
     age: usize,
 }
 
-pub async fn get_user(info: web::Path<String>) -> Result<impl Responder> {
+pub async fn get_user(info: web::Path<String>, hello: web::Data<String>) -> Result<String> {
     let user_id = info.into_inner();
-    Ok(format!("Seja bem vindo, {}", user_id))
+    Ok(format!("{}, {}", *hello, user_id))
 }
 
 pub async fn add_user(data: web::Json<User>) -> Result<String> {

@@ -25,6 +25,7 @@ async fn main() -> std::io::Result<()> {
     println!("🔥 Server is running!");
     HttpServer::new(|| {
         App::new()
+            .app_data(web::Data::new(String::from("hello world")))
             .configure(routes::user_routes)
             .service(web::scope("/nested").service(get_funtion).service(echo))
             .service(index)
