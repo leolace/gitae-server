@@ -11,6 +11,9 @@ pub type DbPool = r2d2::Pool<PostgresConnectionManager<NoTls>>;
 mod routes;
 mod user_controller;
 
+mod auth_controller;
+mod auth_service;
+
 #[get("/get")]
 async fn get_funtion() -> HttpResponse {
     HttpResponse::Ok().body("hello world")
@@ -54,6 +57,7 @@ async fn main() -> std::io::Result<()> {
         App::new()
             .app_data(web::Data::new(client.clone()))
             .configure(routes::user_routes)
+            .configure(routes::auth_routes)
             .service(web::scope("/nested").service(get_funtion).service(echo))
             .service(index)
     })

@@ -2,7 +2,7 @@ use actix_web::{get, web, HttpResponse, Responder, Result};
 use r2d2;
 use r2d2_postgres::{postgres::NoTls, PostgresConnectionManager};
 use serde::Deserialize;
-pub type DbPool = r2d2::Pool<PostgresConnectionManager<NoTls>>;
+use crate::DbPool;
 
 #[derive(Deserialize)]
 pub struct User {
