@@ -44,6 +44,12 @@ pub async fn find(pool: web::Data<DbPool>) -> HttpResponse {
 }
 
 pub async fn create(body: web::Json<SignUp>, pool: web::Data<DbPool>) -> HttpResponse {
-    let user = auth_service::create(body, pool).await.unwrap();
-    HttpResponse::Ok().json(user)
+    match auth_service::create(body, pool).await {
+        Ok(user) => {
+            HttpResponse::Ok().json(user)
+        }
+        Err(e) => {
+            println!("error ########");
+            HttpResponse::BadRequest().body(e)},
+    }
 }
