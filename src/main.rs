@@ -1,18 +1,15 @@
 use actix_web::{get, post, web, App, HttpRequest, HttpResponse, HttpServer, Responder};
 use dotenv::dotenv;
-use r2d2;
-use r2d2_postgres::{postgres::NoTls, PostgresConnectionManager};
+use sqlx::postgres::PgPool;
 use std::env;
-use std::process;
-use postgres::config::Config;
-
-pub type DbPool = r2d2::Pool<PostgresConnectionManager<NoTls>>;
 
 mod routes;
 mod user_controller;
 
 mod auth_controller;
 mod auth_service;
+
+pub type AppPool = web::Data<PgPool>;
 
 #[get("/get")]
 async fn get_funtion() -> HttpResponse {
@@ -30,17 +27,10 @@ async fn index(req: HttpRequest) -> HttpResponse {
     HttpResponse::Ok().body("index mudou")
 }
 
-async fn get_pool() -> DbPool {
+async fn get_pool() -> PgPool {
+    println!("chegou");
     let database_url = env::var("DATABASE_URL").expect("DATABASE_URL not set");
-
-    let config = Config::from(database_url.parse::<Config>().unwrap());
-
-    let manager = PostgresConnectionManager::new(config, NoTls);
-
-    let pool = r2d2::Pool::new(manager).unwrap_or_else(|e| {
-        println!("Something got wrong: {}", e);
-        process::exit(1)
-    });
+    let pool = PgPool::connect(&database_url).await.unwrap();
 
     pool
 }
@@ -49,13 +39,13 @@ async fn get_pool() -> DbPool {
 async fn main() -> std::io::Result<()> {
     dotenv().ok();
 
-    let client = get_pool().await;
+    let pool = get_pool().await;
 
     routes::get_hello();
     println!("🔥 Server is running!");
     HttpServer::new(move || {
         App::new()
-            .app_data(web::Data::new(client.clone()))
+            .app_data(web::Data::new(pool.clone()))
             .configure(routes::user_routes)
             .configure(routes::auth_routes)
             .service(web::scope("/nested").service(get_funtion).service(echo))

@@ -1,4 +1,4 @@
-use crate::{user_controller, auth_controller};
+use crate::{auth_controller, user_controller};
 use actix_web::web;
 
 pub fn get_hello() {
@@ -14,6 +14,7 @@ pub fn user_routes(cfg: &mut web::ServiceConfig) {
 }
 
 pub fn auth_routes(cfg: &mut web::ServiceConfig) {
+
     cfg.service(
         web::scope("/auth")
             .route("/signin", web::get().to(auth_controller::find))

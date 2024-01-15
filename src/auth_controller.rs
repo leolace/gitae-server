@@ -1,9 +1,9 @@
-use crate::auth_service;
-use crate::DbPool;
+use crate::auth_service::AuthService;
 use actix_web::{web, HttpRequest, HttpResponse};
 use postgres::Row;
 use serde::{Deserialize, Serialize};
 use serde_json;
+use sqlx::postgres::PgPool;
 
 #[derive(Deserialize, Serialize)]
 pub struct User {
@@ -13,7 +13,7 @@ pub struct User {
     pub password: String,
 }
 
-#[derive(Deserialize, Serialize)]
+#[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct SignUp {
     pub username: String,
     pub email: String,
@@ -21,7 +21,14 @@ pub struct SignUp {
 }
 
 impl User {
-    pub fn new() {}
+    pub fn new(id: i32, username: String, email: String, password: String) -> User {
+        User {
+            id,
+            username,
+            email,
+            password,
+        }
+    }
 
     pub fn from_row(row: Row) -> User {
         let id = row.get::<&str, i32>("id");
@@ -38,18 +45,25 @@ impl User {
     }
 }
 
-pub async fn find(pool: web::Data<DbPool>) -> HttpResponse {
+#[derive(Deserialize, Serialize)]
+struct Error {
+    code: u32,
+    message: String,
+}
+
+impl Error {
+    pub fn new(code: u32, message: String) -> Error {
+        Error { code, message }
+    }
+}
+
+pub async fn find(pool: web::Data<PgPool>) -> HttpResponse {
     // TODO: user login
     HttpResponse::Ok().finish()
 }
 
-pub async fn create(body: web::Json<SignUp>, pool: web::Data<DbPool>) -> HttpResponse {
-    match auth_service::create(body, pool).await {
-        Ok(user) => {
-            HttpResponse::Ok().json(user)
-        }
-        Err(e) => {
-            println!("error ########");
-            HttpResponse::BadRequest().body(e)},
-    }
+pub async fn create(body: web::Json<SignUp>, pool: web::Data<PgPool>) -> HttpResponse {
+    let c = AuthService::create(body, pool).await;
+
+    HttpResponse::Ok().json(c)
 }
