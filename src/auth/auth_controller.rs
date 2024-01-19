@@ -1,9 +1,9 @@
-use crate::auth_service::AuthService;
 use actix_web::{web, HttpRequest, HttpResponse};
 use serde::{Deserialize, Serialize};
 use serde_json;
 use sqlx::postgres::{PgPool, PgRow};
 use sqlx::Row;
+use crate::auth::auth_service::AuthService;
 
 #[derive(Deserialize, Serialize)]
 pub struct User {
@@ -62,12 +62,12 @@ impl Error {
     }
 }
 
-pub async fn find(pool: web::Data<PgPool>) -> HttpResponse {
+pub async fn sign_in(pool: web::Data<PgPool>) -> HttpResponse {
     // TODO: user login
     HttpResponse::Ok().finish()
 }
 
-pub async fn create(body: web::Json<SignUp>, pool: web::Data<PgPool>) -> HttpResponse {
+pub async fn sign_up(body: web::Json<SignUp>, pool: web::Data<PgPool>) -> HttpResponse {
     let c = AuthService::new(pool).create(body).await;
 
     match c {

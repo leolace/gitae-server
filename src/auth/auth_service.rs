@@ -1,7 +1,7 @@
-use crate::auth_controller::{SignUp, User};
+use crate::auth::auth_controller::{SignUp, User};
 use crate::AppPool;
-use actix_web::{web, HttpRequest, HttpResponse};
-use sqlx::{postgres::PgPool, Row};
+use actix_web::{web, HttpResponse};
+use sqlx::Row;
 
 pub trait RootService {
     async fn create(&self, body: web::Json<SignUp>, pool: AppPool) -> User;
@@ -24,13 +24,13 @@ impl AuthService {
         let user_exists_by_email = self.exists_by_email(&body.email).await;
 
         if user_exists_by_email {
-            return Err(HttpResponse::Conflict().body("This email has already taken"));
+            return Err(HttpResponse::Conflict().body("This email has already been taken"));
         }
 
         let user_exists_by_username = self.exists_by_username(&body.username).await;
 
         if user_exists_by_username {
-            return Err(HttpResponse::Conflict().body("This username has already taken"));
+            return Err(HttpResponse::Conflict().body("This username has already been taken"));
         }
 
         let pool = self.pool.get_ref();

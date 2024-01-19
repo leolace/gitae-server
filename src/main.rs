@@ -7,8 +7,7 @@ use std::env;
 mod routes;
 mod user_controller;
 
-mod auth_controller;
-mod auth_service;
+mod auth;
 
 pub type AppPool = web::Data<PgPool>;
 

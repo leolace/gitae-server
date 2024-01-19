@@ -1,9 +1,9 @@
 # RUST API
 
 ## Users
-- [ ] Create
+- [x] Create
 - [ ] Delete
 - [ ] Update 
 - [ ] Get 
 - [ ] SignIn (JWT)
-- [ ] SignUp
+- [x] SignUp
