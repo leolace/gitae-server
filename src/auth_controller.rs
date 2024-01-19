@@ -1,9 +1,9 @@
 use crate::auth_service::AuthService;
 use actix_web::{web, HttpRequest, HttpResponse};
-use postgres::Row;
 use serde::{Deserialize, Serialize};
 use serde_json;
-use sqlx::postgres::PgPool;
+use sqlx::postgres::{PgPool, PgRow};
+use sqlx::Row;
 
 #[derive(Deserialize, Serialize)]
 pub struct User {
@@ -15,8 +15,13 @@ pub struct User {
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct SignUp {
+    #[serde(default)]
     pub username: String,
+
+    #[serde(default)]
     pub email: String,
+
+    #[serde(default)]
     pub password: String,
 }
 
@@ -30,11 +35,11 @@ impl User {
         }
     }
 
-    pub fn from_row(row: Row) -> User {
-        let id = row.get::<&str, i32>("id");
-        let username = row.get::<&str, String>("username");
-        let email = row.get::<&str, String>("email");
-        let password = row.get::<&str, String>("password");
+    pub fn from_row(row: PgRow) -> User {
+        let id = row.get::<i32, &str>("id");
+        let username = row.get::<String, &str>("username");
+        let email = row.get::<String, &str>("email");
+        let password = row.get::<String, &str>("password");
 
         User {
             username,
@@ -46,7 +51,7 @@ impl User {
 }
 
 #[derive(Deserialize, Serialize)]
-struct Error {
+pub struct Error {
     code: u32,
     message: String,
 }
@@ -63,7 +68,10 @@ pub async fn find(pool: web::Data<PgPool>) -> HttpResponse {
 }
 
 pub async fn create(body: web::Json<SignUp>, pool: web::Data<PgPool>) -> HttpResponse {
-    let c = AuthService::create(body, pool).await;
+    let c = AuthService::new(pool).create(body).await;
 
-    HttpResponse::Ok().json(c)
+    match c {
+        Ok(c) => HttpResponse::Created().json(c),
+        Err(e) => e,
+    }
 }

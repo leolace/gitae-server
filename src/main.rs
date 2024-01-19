@@ -1,4 +1,5 @@
-use actix_web::{get, post, web, App, HttpRequest, HttpResponse, HttpServer, Responder};
+use actix_cors::Cors;
+use actix_web::{get, http, post, web, App, HttpRequest, HttpResponse, HttpServer, Responder};
 use dotenv::dotenv;
 use sqlx::postgres::PgPool;
 use std::env;
@@ -38,17 +39,17 @@ async fn get_pool() -> PgPool {
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     dotenv().ok();
-
     let pool = get_pool().await;
 
-    routes::get_hello();
     println!("🔥 Server is running!");
     HttpServer::new(move || {
+        let cors = Cors::permissive();
+
         App::new()
+            .wrap(cors)
             .app_data(web::Data::new(pool.clone()))
             .configure(routes::user_routes)
             .configure(routes::auth_routes)
-            .service(web::scope("/nested").service(get_funtion).service(echo))
             .service(index)
     })
     .on_connect(|_, _| println!("conexão estabelecida"))
