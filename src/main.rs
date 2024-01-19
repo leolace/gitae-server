@@ -5,9 +5,12 @@ use sqlx::postgres::PgPool;
 use std::env;
 
 mod routes;
-mod user_controller;
 
+mod user;
 mod auth;
+mod models;
+
+mod error;
 
 pub type AppPool = web::Data<PgPool>;
 

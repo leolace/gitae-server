@@ -1,10 +1,12 @@
-use crate::auth::auth_controller::{SignUp, User};
+use crate::auth::{auth_controller, auth_dto};
+use crate::error::Error;
+use crate::models::user::User;
 use crate::AppPool;
-use actix_web::{web, HttpResponse};
+use actix_web::{http::StatusCode, web, HttpResponse};
 use sqlx::Row;
 
 pub trait RootService {
-    async fn create(&self, body: web::Json<SignUp>, pool: AppPool) -> User;
+    async fn create(&self, body: web::Json<auth_dto::SignUp>, pool: AppPool) -> User;
 }
 
 pub struct AuthService {
@@ -16,21 +18,30 @@ impl AuthService {
         AuthService { pool }
     }
 
-    pub async fn create(&self, body: web::Json<SignUp>) -> Result<User, HttpResponse> {
+    pub async fn create(&self, body: web::Json<auth_dto::SignUp>) -> Result<User, Error> {
         if body.email.is_empty() || body.username.is_empty() || body.password.is_empty() {
-            return Err(HttpResponse::BadRequest().body("All fields must be set"));
+            return Err(Error::new(
+                StatusCode::BAD_REQUEST,
+                "All fields must be set",
+            ));
         }
 
         let user_exists_by_email = self.exists_by_email(&body.email).await;
 
         if user_exists_by_email {
-            return Err(HttpResponse::Conflict().body("This email has already been taken"));
+            return Err(Error::new(
+                StatusCode::CONFLICT,
+                "This email has already been taken",
+            ));
         }
 
         let user_exists_by_username = self.exists_by_username(&body.username).await;
 
         if user_exists_by_username {
-            return Err(HttpResponse::Conflict().body("This username has already been taken"));
+            return Err(Error::new(
+                StatusCode::CONFLICT,
+                "This username has already been taken",
+            ));
         }
 
         let pool = self.pool.get_ref();
