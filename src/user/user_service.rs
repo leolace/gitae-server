@@ -1,5 +1,7 @@
+use crate::error::Error;
 use crate::models::user::User;
-use crate::AppPool;
+use crate::{AppPool, ResultE};
+use actix_web::{http::StatusCode, web};
 use sqlx;
 use sqlx::Row;
 
@@ -10,6 +12,28 @@ pub struct UserService {
 impl UserService {
     pub async fn new(pool: AppPool) -> UserService {
         UserService { pool }
+    }
+
+    pub async fn index(&self) -> ResultE<Vec<User>> {
+        let pool = self.pool.get_ref();
+
+        let users_query = sqlx::query("SELECT * FROM users").fetch_all(pool).await;
+
+        let users = match users_query {
+            Ok(d) => {
+                let mut users: Vec<User> = Vec::new();
+
+                for user in d {
+                    let user_from_row = User::from_row(user);
+                    users.push(user_from_row);
+                }
+
+                users
+            }
+            Err(_) => return Err(Error::new(StatusCode::NOT_FOUND, "No users found")),
+        };
+
+        Ok(users)
     }
 
     pub async fn find(&self, id: i32) -> Option<User> {

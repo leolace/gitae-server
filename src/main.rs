@@ -12,6 +12,7 @@ mod models;
 
 mod error;
 
+pub type ResultE<T, E = error::Error> = Result<T, E>;
 pub type AppPool = web::Data<PgPool>;
 
 #[get("/get")]

@@ -1,15 +1,15 @@
 use crate::auth::{auth_controller, auth_dto};
 use crate::error::Error;
-use crate::models::{auth::JwtPayload, auth::UserId, user::User};
+use crate::models::{auth::AuthClaims, auth::AuthPayload, user::User};
 use crate::user::user_service::UserService;
-use crate::AppPool;
+use crate::{AppPool, ResultE};
 use actix_web::{http::StatusCode, web, HttpRequest, HttpResponse};
+use chrono::Local;
 use hmac::{Hmac, Mac};
-use jwt::{SignWithKey, VerifyWithKey};
+use jsonwebtoken::{decode, encode, Algorithm, DecodingKey, EncodingKey, Header, Validation};
 use sha2::Sha256;
 use sqlx::Row;
-
-type ResultE<T, E = Error> = Result<T, E>;
+use std::time::Duration;
 
 pub struct AuthService {
     pool: AppPool,
@@ -65,7 +65,7 @@ impl AuthService {
         Ok(user)
     }
 
-    pub async fn sign_in(&self, body: web::Json<auth_dto::SignIn>) -> ResultE<JwtPayload> {
+    pub async fn sign_in(&self, body: web::Json<auth_dto::SignIn>) -> ResultE<AuthPayload> {
         let user_exists = UserService::new(self.pool.clone())
             .await
             .find_by_email(&body.email)
@@ -76,11 +76,20 @@ impl AuthService {
                 if d.password != body.password {
                     return Err(Error::new(StatusCode::BAD_REQUEST, "Credentials are wrong"));
                 }
-                let user = UserId { id: d.id };
-                let key: Hmac<Sha256> = Hmac::new_from_slice(b"secret key").unwrap();
-                let token = user.sign_with_key(&key).unwrap();
 
-                Ok(JwtPayload { token })
+                let now = Local::now();
+                let exp = (now + Duration::from_secs(10800)).timestamp();
+
+                let user_claims = AuthClaims { user_id: d.id, exp };
+
+                let token = encode(
+                    &Header::default(),
+                    &user_claims,
+                    &EncodingKey::from_secret("secret".as_ref()),
+                )
+                .unwrap();
+
+                Ok(AuthPayload { token })
             }
             None => Err(Error::new(StatusCode::BAD_REQUEST, "Credentials are wrong")),
         }
@@ -94,16 +103,19 @@ impl AuthService {
             .unwrap()
             .split(' ')
             .collect::<Vec<&str>>()[1];
-        let key: Hmac<Sha256> = Hmac::new_from_slice(b"secret key").unwrap();
 
-        let user_payload: UserId = match auth.verify_with_key(&key) {
-            Ok(d) => d,
+        let user_payload: AuthClaims = match decode::<AuthClaims>(
+            &auth,
+            &DecodingKey::from_secret("secret".as_ref()),
+            &Validation::new(Algorithm::HS256),
+        ) {
+            Ok(d) => d.claims,
             Err(_) => return Err(Error::new(StatusCode::BAD_REQUEST, "Invalid bearer token")),
         };
 
         let user = UserService::new(self.pool.clone())
             .await
-            .find(user_payload.id)
+            .find(user_payload.user_id)
             .await;
 
         match user {
