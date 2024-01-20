@@ -17,7 +17,8 @@ pub fn auth_routes(cfg: &mut web::ServiceConfig) {
 
     cfg.service(
         web::scope("/auth")
-            .route("/signin", web::get().to(auth_controller::sign_in))
-            .route("/signup", web::post().to(auth_controller::sign_up)),
+            .route("/signin", web::post().to(auth_controller::sign_in))
+            .route("/signup", web::post().to(auth_controller::sign_up))
+            .route("/me", web::get().to(auth_controller::me)),
     );
 }

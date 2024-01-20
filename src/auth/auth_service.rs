@@ -1,13 +1,15 @@
 use crate::auth::{auth_controller, auth_dto};
 use crate::error::Error;
-use crate::models::user::User;
+use crate::models::{auth::JwtPayload, auth::UserId, user::User};
+use crate::user::user_service::UserService;
 use crate::AppPool;
-use actix_web::{http::StatusCode, web, HttpResponse};
+use actix_web::{http::StatusCode, web, HttpRequest, HttpResponse};
+use hmac::{Hmac, Mac};
+use jwt::{SignWithKey, VerifyWithKey};
+use sha2::Sha256;
 use sqlx::Row;
 
-pub trait RootService {
-    async fn create(&self, body: web::Json<auth_dto::SignUp>, pool: AppPool) -> User;
-}
+type ResultE<T, E = Error> = Result<T, E>;
 
 pub struct AuthService {
     pool: AppPool,
@@ -18,7 +20,7 @@ impl AuthService {
         AuthService { pool }
     }
 
-    pub async fn create(&self, body: web::Json<auth_dto::SignUp>) -> Result<User, Error> {
+    pub async fn sign_up(&self, body: web::Json<auth_dto::SignUp>) -> ResultE<User> {
         if body.email.is_empty() || body.username.is_empty() || body.password.is_empty() {
             return Err(Error::new(
                 StatusCode::BAD_REQUEST,
@@ -58,6 +60,52 @@ impl AuthService {
         let user = User::from_row(query);
 
         Ok(user)
+    }
+
+    pub async fn sign_in(&self, body: web::Json<auth_dto::SignIn>) -> ResultE<JwtPayload> {
+        let user_exists = UserService::new(self.pool.clone())
+            .await
+            .find_by_email(&body.email)
+            .await;
+
+        match user_exists {
+            Some(user) => {
+                let user = UserId { id: user.id };
+                let key: Hmac<Sha256> = Hmac::new_from_slice(b"secret key").unwrap();
+                let token = user.sign_with_key(&key).unwrap();
+                Ok(JwtPayload { token })
+            }
+            None => Err(Error::new(
+                StatusCode::NOT_FOUND,
+                "This user doesn't exists",
+            )),
+        }
+    }
+
+    pub async fn me(&self, req: HttpRequest) -> ResultE<User> {
+        let req_headers = req.headers();
+        let auth_header = req_headers.get("Authorization").unwrap();
+        let auth = auth_header
+            .to_str()
+            .unwrap()
+            .split(' ')
+            .collect::<Vec<&str>>()[1];
+        let key: Hmac<Sha256> = Hmac::new_from_slice(b"secret key").unwrap();
+
+        let user_payload: UserId = match auth.verify_with_key(&key) {
+            Ok(d) => d,
+            Err(_) => return Err(Error::new(StatusCode::BAD_REQUEST, "Invalid bearer token"))
+        };
+
+        let user = UserService::new(self.pool.clone())
+            .await
+            .find(user_payload.id)
+            .await;
+
+        match user {
+            Some(user) => Ok(user),
+            None => Err(Error::new(StatusCode::NOT_FOUND, "Bad request user")),
+        }
     }
 
     async fn exists_by_email(&self, email: &String) -> bool {
