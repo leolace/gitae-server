@@ -37,4 +37,32 @@ impl UserService {
             Err(_) => None,
         }
     }
+
+    pub async fn exists_by_email(&self, email: &String) -> bool {
+        let pool = self.pool.get_ref();
+
+        let query = sqlx::query("SELECT EXISTS(SELECT 1 FROM users WHERE email=$1)")
+            .bind(email)
+            .fetch_one(pool)
+            .await
+            .unwrap();
+
+        let exists = query.get::<bool, &str>("exists");
+
+        exists
+    }
+
+    pub async fn exists_by_username(&self, username: &String) -> bool {
+        let pool = self.pool.get_ref();
+
+        let query = sqlx::query("SELECT EXISTS(SELECT 1 FROM users WHERE username=$1)")
+            .bind(username)
+            .fetch_one(pool)
+            .await
+            .unwrap();
+
+        let exists = query.get::<bool, &str>("exists");
+
+        exists
+    }
 }

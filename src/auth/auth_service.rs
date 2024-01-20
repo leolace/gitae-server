@@ -15,6 +15,7 @@ pub struct AuthService {
     pool: AppPool,
 }
 
+// TODO: change jwt lib to a better and more recent one (jsonwebtoken)
 impl AuthService {
     pub fn new(pool: AppPool) -> AuthService {
         AuthService { pool }
@@ -28,7 +29,9 @@ impl AuthService {
             ));
         }
 
-        let user_exists_by_email = self.exists_by_email(&body.email).await;
+        let user_service = UserService::new(self.pool.clone()).await;
+
+        let user_exists_by_email = user_service.exists_by_email(&body.email).await;
 
         if user_exists_by_email {
             return Err(Error::new(
@@ -37,7 +40,7 @@ impl AuthService {
             ));
         }
 
-        let user_exists_by_username = self.exists_by_username(&body.username).await;
+        let user_exists_by_username = user_service.exists_by_username(&body.username).await;
 
         if user_exists_by_username {
             return Err(Error::new(
@@ -69,16 +72,17 @@ impl AuthService {
             .await;
 
         match user_exists {
-            Some(user) => {
-                let user = UserId { id: user.id };
+            Some(d) => {
+                if d.password != body.password {
+                    return Err(Error::new(StatusCode::BAD_REQUEST, "Credentials are wrong"));
+                }
+                let user = UserId { id: d.id };
                 let key: Hmac<Sha256> = Hmac::new_from_slice(b"secret key").unwrap();
                 let token = user.sign_with_key(&key).unwrap();
+
                 Ok(JwtPayload { token })
             }
-            None => Err(Error::new(
-                StatusCode::NOT_FOUND,
-                "This user doesn't exists",
-            )),
+            None => Err(Error::new(StatusCode::BAD_REQUEST, "Credentials are wrong")),
         }
     }
 
@@ -94,7 +98,7 @@ impl AuthService {
 
         let user_payload: UserId = match auth.verify_with_key(&key) {
             Ok(d) => d,
-            Err(_) => return Err(Error::new(StatusCode::BAD_REQUEST, "Invalid bearer token"))
+            Err(_) => return Err(Error::new(StatusCode::BAD_REQUEST, "Invalid bearer token")),
         };
 
         let user = UserService::new(self.pool.clone())
@@ -106,33 +110,5 @@ impl AuthService {
             Some(user) => Ok(user),
             None => Err(Error::new(StatusCode::NOT_FOUND, "Bad request user")),
         }
-    }
-
-    async fn exists_by_email(&self, email: &String) -> bool {
-        let pool = self.pool.get_ref();
-
-        let query = sqlx::query("SELECT EXISTS(SELECT 1 FROM users WHERE email=$1)")
-            .bind(email)
-            .fetch_one(pool)
-            .await
-            .unwrap();
-
-        let exists = query.get::<bool, &str>("exists");
-
-        exists
-    }
-
-    async fn exists_by_username(&self, username: &String) -> bool {
-        let pool = self.pool.get_ref();
-
-        let query = sqlx::query("SELECT EXISTS(SELECT 1 FROM users WHERE username=$1)")
-            .bind(username)
-            .fetch_one(pool)
-            .await
-            .unwrap();
-
-        let exists = query.get::<bool, &str>("exists");
-
-        exists
     }
 }
