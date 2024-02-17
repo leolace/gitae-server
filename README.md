@@ -4,6 +4,12 @@
 - [x] Create
 - [ ] Delete
 - [ ] Update 
-- [ ] Get 
-- [ ] SignIn (JWT)
+- [x] Get (/me)
+- [x] Delete session 
+- [x] SignIn (JWT)
 - [x] SignUp
+
+## Cv
+- [ ] Create
+- [ ] Update 
+- [ ] Delete 
