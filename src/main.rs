@@ -16,28 +16,9 @@ pub type ResultE<T, E = error::HttpError> = Result<T, E>;
 
 pub type AppPool = web::Data<PgPool>;
 
-#[get("/get")]
-async fn get_funtion() -> HttpResponse {
-    HttpResponse::Ok().body("hello world")
-}
-
-#[post("/echo")]
-async fn echo(req_body: String) -> impl Responder {
-    HttpResponse::Ok().body(req_body)
-}
-
-#[get("/")]
-async fn index(req: HttpRequest) -> HttpResponse {
-    println!("{:?}", req.query_string());
-    HttpResponse::Ok().body("index mudou")
-}
-
 async fn get_pool() -> PgPool {
-    println!("chegou");
     let database_url = env::var("DATABASE_URL").expect("DATABASE_URL not set");
-    let pool = PgPool::connect(&database_url).await.unwrap();
-
-    pool
+    PgPool::connect(&database_url).await.unwrap()
 }
 
 #[actix_web::main]
@@ -54,7 +35,6 @@ async fn main() -> std::io::Result<()> {
             .app_data(web::Data::new(pool.clone()))
             .configure(routes::user_routes)
             .configure(routes::auth_routes)
-            .service(index)
     })
     .on_connect(|_, _| println!("conexão estabelecida"))
     .bind(("127.0.0.1", 8080))?
