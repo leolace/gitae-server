@@ -1,8 +1,9 @@
 use crate::auth::{auth_controller, auth_dto};
 use crate::error::Error;
 use crate::models::{auth::AuthClaims, auth::AuthPayload, user::User};
-use crate::user::user_service::UserService;
+use crate::user::user_service::{self, UserService};
 use crate::{AppPool, ResultE};
+use actix_web::http::header::HeaderValue;
 use actix_web::{http::StatusCode, web, HttpRequest, HttpResponse};
 use chrono::Local;
 use hmac::{Hmac, Mac};
@@ -97,20 +98,33 @@ impl AuthService {
 
     pub async fn me(&self, req: HttpRequest) -> ResultE<User> {
         let req_headers = req.headers();
-        let auth_header = req_headers.get("Authorization").unwrap();
-        let auth = auth_header
-            .to_str()
-            .unwrap()
-            .split(' ')
-            .collect::<Vec<&str>>()[1];
+        let auth_header = match req_headers.get("authorization") {
+            Some(header) => header,
+            None => {
+                return Err(Error::new(
+                    StatusCode::BAD_REQUEST,
+                    "Authorization header not found",
+                ))
+            }
+        };
+
+        let auth = match auth_header.to_str().unwrap().split(' ').last() {
+            Some(v) => v,
+            None => {
+                return Err(Error::new(
+                    StatusCode::BAD_REQUEST,
+                    "Invalid bearer token format",
+                ))
+            }
+        };
 
         let user_payload: AuthClaims = match decode::<AuthClaims>(
-            &auth,
+            auth,
             &DecodingKey::from_secret("secret".as_ref()),
             &Validation::new(Algorithm::HS256),
         ) {
             Ok(d) => d.claims,
-            Err(_) => return Err(Error::new(StatusCode::BAD_REQUEST, "Invalid bearer token")),
+            Err(_) => return Err(Error::new(StatusCode::BAD_REQUEST, "Invalid bearer token"))
         };
 
         let user = UserService::new(self.pool.clone())
