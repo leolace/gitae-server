@@ -1,5 +1,4 @@
 use crate::auth::{auth_dto, auth_service::AuthService};
-use crate::error::Error;
 use actix_web::{web, HttpRequest, HttpResponse};
 use sqlx::postgres::PgPool;
 
@@ -8,7 +7,10 @@ pub async fn sign_in(body: web::Json<auth_dto::SignIn>, pool: web::Data<PgPool>)
 
     match token {
         Ok(d) => HttpResponse::Ok().json(d),
-        Err(e) => HttpResponse::build(e.code).json(e)
+        Err(e) =>{
+            println!("error");
+            HttpResponse::build(e.code).json(e)
+        }
     }
 }
 

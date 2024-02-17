@@ -1,9 +1,10 @@
-use crate::error::Error;
+use crate::error::HttpError;
 use crate::models::user::User;
 use crate::{AppPool, ResultE};
 use actix_web::{http::StatusCode, web};
 use sqlx;
 use sqlx::Row;
+use uuid::Uuid;
 
 pub struct UserService {
     pool: AppPool,
@@ -30,13 +31,13 @@ impl UserService {
 
                 users
             }
-            Err(_) => return Err(Error::new(StatusCode::NOT_FOUND, "No users found")),
+            Err(_) => return Err(HttpError::new(StatusCode::NOT_FOUND, "No users found")),
         };
 
         Ok(users)
     }
 
-    pub async fn find(&self, id: i32) -> Option<User> {
+    pub async fn find(&self, id: Uuid) -> Option<User> {
         let pool = self.pool.get_ref();
 
         match sqlx::query("SELECT * FROM users WHERE id=$1")
