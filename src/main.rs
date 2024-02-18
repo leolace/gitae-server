@@ -15,6 +15,8 @@ pub type AppPool = web::Data<PgPool>;
 
 async fn get_pool() -> PgPool {
     let database_url = env::var("DATABASE_URL").expect("DATABASE_URL not set");
+    env::var("SECRET_JWT").expect("SECRET_JWT not set");
+
     match PgPool::connect(&database_url).await {
         Ok(pool) => pool,
         Err(e) => panic!("{}", e),

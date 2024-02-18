@@ -1,7 +1,7 @@
 use crate::error::HttpError;
 use crate::models::user::User;
 use crate::{AppPool, ResultE};
-use actix_web::{http::StatusCode, web};
+use actix_web::http::StatusCode;
 use sqlx;
 use sqlx::Row;
 use uuid::Uuid;
@@ -19,20 +19,17 @@ impl UserService {
         let pool = self.pool.get_ref();
 
         let users_query = sqlx::query("SELECT * FROM users").fetch_all(pool).await;
-
-        let users = match users_query {
-            Ok(d) => {
-                let mut users: Vec<User> = Vec::new();
-
-                for user in d {
-                    let user_from_row = User::from_row(user);
-                    users.push(user_from_row);
-                }
-
-                users
-            }
+        let users_from_db = match users_query {
+            Ok(users_from_db) => users_from_db,
             Err(_) => return Err(HttpError::new(StatusCode::NOT_FOUND, "No users found")),
         };
+
+        let mut users: Vec<User> = Vec::new();
+
+        for user in users_from_db {
+            let user_from_row = User::from_row(user);
+            users.push(user_from_row);
+        }
 
         Ok(users)
     }
@@ -72,9 +69,7 @@ impl UserService {
             .await
             .unwrap();
 
-        let exists = query.get::<bool, &str>("exists");
-
-        exists
+        query.get::<bool, &str>("exists")
     }
 
     pub async fn exists_by_username(&self, username: &String) -> bool {
@@ -86,8 +81,7 @@ impl UserService {
             .await
             .unwrap();
 
-        let exists = query.get::<bool, &str>("exists");
+        query.get::<bool, &str>("exists")
 
-        exists
     }
 }
