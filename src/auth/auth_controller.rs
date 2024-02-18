@@ -7,10 +7,7 @@ pub async fn sign_in(body: web::Json<auth_dto::SignIn>, pool: web::Data<PgPool>)
 
     match token {
         Ok(d) => HttpResponse::Ok().json(d),
-        Err(e) =>{
-            println!("error");
-            HttpResponse::build(e.code).json(e)
-        }
+        Err(e) => HttpResponse::build(e.code).json(e),
     }
 }
 
@@ -28,6 +25,6 @@ pub async fn me(req: HttpRequest, pool: web::Data<PgPool>) -> HttpResponse {
 
     match user {
         Ok(d) => HttpResponse::Ok().json(d),
-        Err(e) => HttpResponse::build(e.code).json(e)
+        Err(e) => HttpResponse::build(e.code).json(e),
     }
-} 
+}

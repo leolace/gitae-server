@@ -1,13 +1,13 @@
-use crate::auth::{auth_controller, auth_dto};
+use crate::auth::auth_dto;
 use crate::error::HttpError;
 use crate::models::{auth::AuthClaims, auth::AuthPayload, user::User};
-use crate::user::user_service::{self, UserService};
+use crate::user::user_service::UserService;
 use crate::{AppPool, ResultE};
-use actix_web::{http::StatusCode, web, HttpRequest, HttpResponse};
+use actix_web::{http::StatusCode, web, HttpRequest};
 use chrono::Local;
-use hmac::{Hmac, Mac};
 use jsonwebtoken::{decode, encode, Algorithm, DecodingKey, EncodingKey, Header, Validation};
 use sqlx::Row;
+use std::env;
 use std::time::Duration;
 use uuid::Uuid;
 
@@ -15,7 +15,6 @@ pub struct AuthService {
     pool: AppPool,
 }
 
-// TODO: change jwt lib to a better and more recent one (jsonwebtoken)
 impl AuthService {
     pub fn new(pool: AppPool) -> AuthService {
         AuthService { pool }
@@ -66,48 +65,54 @@ impl AuthService {
     }
 
     pub async fn sign_in(&self, body: web::Json<auth_dto::SignIn>) -> ResultE<AuthPayload> {
+        let secret = env::var("SECRET_JWT").unwrap();
         let user_exists = UserService::new(self.pool.clone())
             .await
             .find_by_email(&body.email)
             .await;
 
-        match user_exists {
-            Some(user) => {
-                if user.password != body.password {
-                    return Err(HttpError::new(
-                        StatusCode::BAD_REQUEST,
-                        "Credentials are wrong",
-                    ));
-                }
-
-                let now = Local::now();
-                let exp = (now + Duration::from_secs(10800)).timestamp();
-
-                let user_claims = AuthClaims {
-                    user_id: user.id,
-                    exp,
-                };
-
-                let token = encode(
-                    &Header::default(),
-                    &user_claims,
-                    &EncodingKey::from_secret("secret".as_ref()),
-                )
-                .unwrap();
-
-                match self.open_session(&token, &user.id).await {
-                    Ok(_) => Ok(AuthPayload { token }),
-                    Err(e) => Err(HttpError::new(StatusCode::BAD_REQUEST, e)),
-                }
+        let user = match user_exists {
+            Some(user) => user,
+            None => {
+                return Err(HttpError::new(
+                    StatusCode::BAD_REQUEST,
+                    "Credentials are wrong",
+                ))
             }
-            None => Err(HttpError::new(
+        };
+
+        if user.password != body.password {
+            return Err(HttpError::new(
                 StatusCode::BAD_REQUEST,
                 "Credentials are wrong",
-            )),
+            ));
+        }
+
+        let now = Local::now();
+        let exp = (now + Duration::from_secs(10800)).timestamp();
+
+        let user_claims = AuthClaims {
+            user_id: user.id,
+            exp,
+        };
+
+        let token = match encode(
+            &Header::default(),
+            &user_claims,
+            &EncodingKey::from_secret(secret.as_ref()),
+        ) {
+            Ok(token) => token,
+            Err(_) => return Err(HttpError::new(StatusCode::BAD_REQUEST, "Invalid token")),
+        };
+
+        match self.open_session(&token, &user.id).await {
+            Ok(_) => Ok(AuthPayload { token }),
+            Err(e) => Err(HttpError::new(StatusCode::BAD_REQUEST, e)),
         }
     }
 
     pub async fn me(&self, req: HttpRequest) -> ResultE<User> {
+        let secret = env::var("SECRET_JWT").unwrap();
         let req_headers = req.headers();
         let auth_header = match req_headers.get("authorization") {
             Some(header) => header,
@@ -135,25 +140,28 @@ impl AuthService {
             .await;
 
         let session = match session {
-            Ok(s) => s,
-            Err(_) => return Err(HttpError::new(StatusCode::UNAUTHORIZED, "Usuário não autenticado"))
+            Ok(session) => session,
+            Err(_) => {
+                return Err(HttpError::new(
+                    StatusCode::UNAUTHORIZED,
+                    "Usuário não autenticado",
+                ))
+            }
         };
 
         let token_from_session = session.get::<String, &str>("token");
 
         match token_from_session == token {
             true => (),
-            false => return Err(HttpError::new(StatusCode::UNAUTHORIZED, "Token inválido"))
+            false => return Err(HttpError::new(StatusCode::UNAUTHORIZED, "Token inválido")),
         }
-
-        println!("token: {}; session: {}", token, token_from_session);
 
         let user_payload: AuthClaims = match decode::<AuthClaims>(
             token,
-            &DecodingKey::from_secret("secret".as_ref()),
+            &DecodingKey::from_secret(secret.as_ref()),
             &Validation::new(Algorithm::HS256),
         ) {
-            Ok(d) => d.claims,
+            Ok(user_payload) => user_payload.claims,
             Err(_) => {
                 return Err(HttpError::new(
                     StatusCode::BAD_REQUEST,
@@ -161,7 +169,6 @@ impl AuthService {
                 ))
             }
         };
-
 
         let user = UserService::new(self.pool.clone())
             .await
@@ -190,14 +197,16 @@ impl AuthService {
 
     async fn open_session(&self, token: &String, user_id: &Uuid) -> Result<(), &str> {
         let pool = self.pool.get_ref();
-        let session = self.get_session_by_user_id(user_id).await;
 
-        println!("{:?}", session);
+        let session = match self.get_session_by_user_id(user_id).await {
+            Ok(session) => session,
+            Err(_) => return Err("Error getting session"),
+        };
 
-        if session.is_ok() {
-            println!("deletar");
-            self.delete_session(session.unwrap()).await.unwrap();
-        }
+        match self.delete_session(session).await {
+            Ok(_) => (),
+            Err(_) => return Err("Error deleting session"),
+        };
 
         let query = sqlx::query("INSERT INTO sessions (token, user_id) VALUES ($1, $2)")
             .bind(token)
@@ -219,11 +228,9 @@ impl AuthService {
             .execute(pool)
             .await;
 
-        println!("{:?}", query);
-
         match query {
             Ok(_) => Ok(()),
-            Err(_) => Err("Was not possivel delete session"),
+            Err(_) => Err("Was not possible to delete session"),
         }
     }
 }

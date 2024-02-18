@@ -2,10 +2,6 @@ use crate::auth::auth_controller;
 use crate::user::user_controller;
 use actix_web::web;
 
-pub fn get_hello() {
-    println!("hello world");
-}
-
 pub fn user_routes(cfg: &mut web::ServiceConfig) {
     cfg.service(
         web::scope("/user")
