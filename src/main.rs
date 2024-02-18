@@ -9,6 +9,7 @@ mod error;
 mod models;
 mod routes;
 mod user;
+mod helpers;
 
 pub type ResultE<T, E = error::HttpError> = Result<T, E>;
 pub type AppPool = web::Data<PgPool>;

@@ -1,14 +1,12 @@
 use crate::auth::auth_dto;
 use crate::error::HttpError;
-use crate::models::{auth::AuthClaims, auth::AuthPayload, user::User};
+use crate::helpers::get_token::get_token;
+use crate::models::auth::Auth;
+use crate::models::{auth::AuthPayload, user::User};
 use crate::user::user_service::UserService;
 use crate::{AppPool, ResultE};
 use actix_web::{http::StatusCode, web, HttpRequest};
-use chrono::Local;
-use jsonwebtoken::{decode, encode, Algorithm, DecodingKey, EncodingKey, Header, Validation};
 use sqlx::Row;
-use std::env;
-use std::time::Duration;
 use uuid::Uuid;
 
 pub struct AuthService {
@@ -65,7 +63,6 @@ impl AuthService {
     }
 
     pub async fn sign_in(&self, body: web::Json<auth_dto::SignIn>) -> ResultE<AuthPayload> {
-        let secret = env::var("SECRET_JWT").unwrap();
         let user_exists = UserService::new(self.pool.clone())
             .await
             .find_by_email(&body.email)
@@ -88,21 +85,9 @@ impl AuthService {
             ));
         }
 
-        let now = Local::now();
-        let exp = (now + Duration::from_secs(10800)).timestamp();
-
-        let user_claims = AuthClaims {
-            user_id: user.id,
-            exp,
-        };
-
-        let token = match encode(
-            &Header::default(),
-            &user_claims,
-            &EncodingKey::from_secret(secret.as_ref()),
-        ) {
+        let token = match Auth::encode_token(&user) {
             Ok(token) => token,
-            Err(_) => return Err(HttpError::new(StatusCode::BAD_REQUEST, "Invalid token")),
+            Err(e) => return Err(HttpError::new(StatusCode::INTERNAL_SERVER_ERROR, e)),
         };
 
         match self.open_session(&token, &user.id).await {
@@ -112,30 +97,13 @@ impl AuthService {
     }
 
     pub async fn me(&self, req: HttpRequest) -> ResultE<User> {
-        let secret = env::var("SECRET_JWT").unwrap();
-        let req_headers = req.headers();
-        let auth_header = match req_headers.get("authorization") {
-            Some(header) => header,
-            None => {
-                return Err(HttpError::new(
-                    StatusCode::BAD_REQUEST,
-                    "Authorization header not found",
-                ))
-            }
-        };
-
-        let token = match auth_header.to_str().unwrap().split(' ').last() {
-            Some(v) => v,
-            None => {
-                return Err(HttpError::new(
-                    StatusCode::BAD_REQUEST,
-                    "Invalid bearer token format",
-                ))
-            }
+        let token = match get_token(req.headers()) {
+            Ok(token) => token,
+            Err(e) => return Err(HttpError::new(StatusCode::BAD_REQUEST, e)),
         };
 
         let session = sqlx::query("SELECT * FROM sessions WHERE token = ($1)")
-            .bind(token)
+            .bind(&token)
             .fetch_one(self.pool.get_ref())
             .await;
 
@@ -156,18 +124,9 @@ impl AuthService {
             false => return Err(HttpError::new(StatusCode::UNAUTHORIZED, "Token inválido")),
         }
 
-        let user_payload: AuthClaims = match decode::<AuthClaims>(
-            token,
-            &DecodingKey::from_secret(secret.as_ref()),
-            &Validation::new(Algorithm::HS256),
-        ) {
-            Ok(user_payload) => user_payload.claims,
-            Err(_) => {
-                return Err(HttpError::new(
-                    StatusCode::BAD_REQUEST,
-                    "Invalid bearer token",
-                ))
-            }
+        let user_payload = match Auth::decode_token(token) {
+            Ok(user_payload) => user_payload,
+            Err(e) => return Err(HttpError::new(StatusCode::BAD_REQUEST, e)),
         };
 
         let user = UserService::new(self.pool.clone())
