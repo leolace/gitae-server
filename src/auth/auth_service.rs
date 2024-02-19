@@ -157,14 +157,13 @@ impl AuthService {
     async fn open_session(&self, token: &String, user_id: &Uuid) -> Result<(), &str> {
         let pool = self.pool.get_ref();
 
-        let session = match self.get_session_by_user_id(user_id).await {
-            Ok(session) => session,
-            Err(_) => return Err("Error getting session"),
-        };
+        let session = self.get_session_by_user_id(user_id).await;
 
-        match self.delete_session(session).await {
-            Ok(_) => (),
-            Err(_) => return Err("Error deleting session"),
+        if session.is_ok() {
+            match self.delete_session(session.unwrap()).await {
+                Ok(_) => (),
+                Err(_) => return Err("Error deleting session"),
+            }
         };
 
         let query = sqlx::query("INSERT INTO sessions (token, user_id) VALUES ($1, $2)")
