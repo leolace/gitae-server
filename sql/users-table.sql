@@ -5,10 +5,3 @@ create table if not exists users (
 	email varchar(255) unique not null
 );
 
-create table if not exists curriculum (
-  id serial primary key,
-  title 
-  subtitle
-  infos /* linkar para uma outra table */
-  experiences /* linkar para uma outra table */
-  )
