@@ -4,15 +4,11 @@ mod auth_tests {
     use crate::{
         auth::auth_dto::{SignIn, SignUp},
         helpers::init_test,
-        models::{
-            auth::AuthPayload,
-            user::{self, User},
-        },
-        user::user_service,
+        models::{auth::AuthPayload, user::User},
     };
     use actix_web::{
         http::header::ContentType,
-        test::{self, read_body_json, TestRequest},
+        test::{self, TestRequest},
     };
 
     #[actix_web::test]

@@ -2,9 +2,7 @@ use crate::error::HttpError;
 use crate::models::user::User;
 use crate::{AppPool, ResultE};
 use actix_web::http::StatusCode;
-use actix_web::web;
-use sqlx;
-use sqlx::Row;
+use sqlx::{self, Row};
 use uuid::Uuid;
 
 pub struct UserService {
@@ -43,7 +41,7 @@ impl UserService {
             .fetch_one(pool)
             .await
         {
-            Ok(d) => Some(User::from_row(d)),
+            Ok(user) => Some(User::from_row(user)),
             Err(_) => None,
         }
     }
@@ -56,11 +54,12 @@ impl UserService {
             .execute(pool)
             .await;
 
-        println!("{:?}", delete);
-
         match delete {
             Ok(_) => Ok(()),
-            Err(e) => Err(HttpError::new(StatusCode::NOT_FOUND, "No users found")),
+            Err(_) => Err(HttpError::new(
+                StatusCode::NOT_FOUND,
+                "No users found or was not possible to delete",
+            )),
         }
     }
 
@@ -72,7 +71,7 @@ impl UserService {
             .fetch_one(pool)
             .await
         {
-            Ok(d) => Some(User::from_row(d)),
+            Ok(user) => Some(User::from_row(user)),
             Err(_) => None,
         }
     }
