@@ -2,6 +2,7 @@ use crate::error::HttpError;
 use crate::models::user::User;
 use crate::{AppPool, ResultE};
 use actix_web::http::StatusCode;
+use actix_web::web;
 use sqlx;
 use sqlx::Row;
 use uuid::Uuid;
@@ -47,6 +48,22 @@ impl UserService {
         }
     }
 
+    pub async fn delete(&self, id: Uuid) -> ResultE<()> {
+        let pool = self.pool.get_ref();
+
+        let delete = sqlx::query("DELETE FROM users WHERE id = ($1)")
+            .bind(id)
+            .execute(pool)
+            .await;
+
+        println!("{:?}", delete);
+
+        match delete {
+            Ok(_) => Ok(()),
+            Err(e) => Err(HttpError::new(StatusCode::NOT_FOUND, "No users found")),
+        }
+    }
+
     pub async fn find_by_email(&self, email: &String) -> Option<User> {
         let pool = self.pool.get_ref();
 
@@ -82,6 +99,5 @@ impl UserService {
             .unwrap();
 
         query.get::<bool, &str>("exists")
-
     }
 }

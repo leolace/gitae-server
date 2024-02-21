@@ -1,5 +1,6 @@
 use actix_web::http::header::HeaderMap;
 
+
 pub fn get_token(headers: &HeaderMap) -> Result<String, &str> {
     let auth_header = match headers.get("authorization") {
         Some(header) => header,

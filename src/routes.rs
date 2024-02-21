@@ -5,7 +5,8 @@ use actix_web::web;
 pub fn user_routes(cfg: &mut web::ServiceConfig) {
     cfg.service(
         web::scope("/user")
-            .route("/", web::get().to(user_controller::index)),
+            .route("/", web::get().to(user_controller::index))
+            .route("/{id}", web::delete().to(user_controller::delete)),
     );
 }
 

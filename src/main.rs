@@ -1,20 +1,20 @@
 use actix_cors::Cors;
-use actix_web::{middleware::Logger, web, App, HttpServer};
+use actix_web::{middleware::Logger, web, App, Error, HttpServer};
 use dotenv::dotenv;
 use sqlx::postgres::PgPool;
 use std::env;
 
 mod auth;
 mod error;
+mod helpers;
 mod models;
 mod routes;
 mod user;
-mod helpers;
 
 pub type ResultE<T, E = error::HttpError> = Result<T, E>;
 pub type AppPool = web::Data<PgPool>;
 
-async fn get_pool() -> PgPool {
+pub async fn get_pool() -> PgPool {
     let database_url = env::var("DATABASE_URL").expect("DATABASE_URL not set");
     env::var("SECRET_JWT").expect("SECRET_JWT not set");
 
