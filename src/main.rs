@@ -1,5 +1,5 @@
 use actix_cors::Cors;
-use actix_web::{middleware::Logger, web, App, Error, HttpServer};
+use actix_web::{middleware::Logger, web, App, HttpServer};
 use dotenv::dotenv;
 use sqlx::postgres::PgPool;
 use std::env;

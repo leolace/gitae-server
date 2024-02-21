@@ -12,6 +12,16 @@ pub async fn index(pool: web::Data<PgPool>) -> HttpResponse {
     }
 }
 
+pub async fn find(pool: web::Data<PgPool>, path: web::Path<(Uuid)>) -> HttpResponse {
+    let (id) = path.into_inner();
+    let user = UserService::new(pool).await.find(id).await;
+
+    match user {
+        Some(user) => HttpResponse::Ok().json(user),
+        None => HttpResponse::NotFound().finish(),
+    }
+}
+
 pub async fn delete(pool: web::Data<PgPool>, path: web::Path<(Uuid)>) -> HttpResponse {
     let (id) = path.into_inner();
     let users = UserService::new(pool).await.delete(id).await;
