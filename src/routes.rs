@@ -1,4 +1,5 @@
 use crate::auth::auth_controller;
+use crate::curriculum::curriculum_controller;
 use crate::user::user_controller;
 use actix_web::web;
 
@@ -17,5 +18,12 @@ pub fn auth_routes(cfg: &mut web::ServiceConfig) {
             .route("/signin", web::post().to(auth_controller::sign_in))
             .route("/signup", web::post().to(auth_controller::sign_up))
             .route("/me", web::get().to(auth_controller::me)),
+    );
+}
+
+pub fn curriculum_routes(cfg: &mut web::ServiceConfig) {
+    cfg.service(
+        web::scope("/curriculum")
+            .route("/", web::post().to(curriculum_controller::store))
     );
 }
