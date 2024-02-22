@@ -2,7 +2,7 @@
 
 ## Users
 - [x] Create
-- [ ] Delete
+- [x] Delete
 - [ ] Update 
 - [x] Get (/me)
 - [x] Delete session 
@@ -10,6 +10,6 @@
 - [x] SignUp
 
 ## Cv
-- [ ] Create
+- [x] Create
 - [ ] Update 
 - [ ] Delete 
