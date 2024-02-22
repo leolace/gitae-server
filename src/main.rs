@@ -1,14 +1,20 @@
 use actix_cors::Cors;
-use actix_web::{middleware::Logger, web, App, HttpServer};
+use actix_web::{
+    dev,
+    middleware::{ErrorHandlerResponse, Logger},
+    web, App, HttpServer, Result,
+};
 use dotenv::dotenv;
 use sqlx::postgres::PgPool;
 use std::env;
 
-mod auth;
 mod error;
 mod helpers;
 mod models;
 mod routes;
+
+mod auth;
+mod curriculum;
 mod user;
 
 pub type ResultE<T, E = error::HttpError> = Result<T, E>;
@@ -22,6 +28,12 @@ pub async fn get_pool() -> PgPool {
         Ok(pool) => pool,
         Err(e) => panic!("{}", e),
     }
+}
+
+fn add_error_header<B>(mut res: dev::ServiceResponse<B>) -> Result<ErrorHandlerResponse<B>> {
+    println!("{:?}", res.response().status());
+
+    Ok(ErrorHandlerResponse::Response(res.map_into_left_body()))
 }
 
 #[actix_web::main]
@@ -40,9 +52,11 @@ async fn main() -> std::io::Result<()> {
         App::new()
             .wrap(cors)
             .wrap(logger)
+            // .wrap(ErrorHandlers::new().handler(StatusCode::BAD_REQUEST, add_error_header))
             .app_data(web::Data::new(pool.clone()))
             .configure(routes::user_routes)
             .configure(routes::auth_routes)
+            .configure(routes::curriculum_routes)
     })
     .on_connect(|_, _| println!("conexão estabelecida"))
     .bind(("127.0.0.1", 8080))?
