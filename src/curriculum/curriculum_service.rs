@@ -1,6 +1,7 @@
 use actix_http::StatusCode;
 use actix_web::web;
 use sqlx;
+use uuid::Uuid;
 
 use crate::{
     error::HttpError, models::curriculum::Curriculum, user::user_service::UserService, AppPool,
@@ -54,6 +55,53 @@ impl CurriculumService {
                 StatusCode::BAD_REQUEST,
                 "Was not possible to create curriculum",
             )),
+        }
+    }
+
+    pub async fn find_one(&self, curriculum_id: Uuid) -> ResultE<Curriculum> {
+        let pool = self.pool.get_ref();
+
+        let query = sqlx::query("SELECT * FROM curriculums WHERE id = ($1)")
+            .bind(curriculum_id)
+            .fetch_one(pool)
+            .await;
+
+        match query {
+            Ok(curriculum) => Ok(Curriculum::from_row(curriculum)),
+            Err(_) => Err(HttpError::new(
+                StatusCode::NOT_FOUND,
+                "Curriculum not found",
+            )),
+        }
+    }
+
+    pub async fn find_all_by_user(&self, user_id: Uuid) -> ResultE<Vec<Curriculum>> {
+        let pool = self.pool.get_ref();
+
+        let user_exists = UserService::new(self.pool.clone())
+            .await
+            .find(user_id)
+            .await;
+
+        match user_exists {
+            Some(_) => (),
+            None => return Err(HttpError::new(StatusCode::NOT_FOUND, "User not found")),
+        };
+
+        let query = sqlx::query("SELECT * FROM curriculums WHERE user_id = ($1)")
+            .bind(user_id)
+            .fetch_all(pool)
+            .await;
+
+        match query {
+            Ok(rows) => {
+                let mut curriculums: Vec<Curriculum> = Vec::new(); 
+                for row in rows {
+                    curriculums.push(Curriculum::from_row(row))
+                }
+                Ok(curriculums)
+            },
+            Err(_) => Err(HttpError::new(StatusCode::BAD_REQUEST, "Something went wrong"))
         }
     }
 }

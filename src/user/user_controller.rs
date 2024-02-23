@@ -27,7 +27,7 @@ pub async fn delete(pool: web::Data<PgPool>, path: web::Path<(Uuid)>) -> HttpRes
     let users = UserService::new(pool).await.delete(id).await;
 
     match users {
-        Ok(d) => HttpResponse::NoContent().finish(),
+        Ok(_) => HttpResponse::NoContent().finish(),
         Err(e) => HttpResponse::build(e.code).json(e),
     }
 }
