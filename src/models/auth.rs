@@ -15,7 +15,10 @@ impl Auth {
     pub fn decode_token(header: &HeaderMap) -> Result<AuthClaims, &'static str> {
         let secret = env::var("SECRET_JWT").unwrap();
 
-        let token = get_token(header).unwrap();
+        let token = match get_token(header) {
+            Ok(token) => token,
+            Err(_) => return Err("Token not found")
+        };
 
         let user_payload: AuthClaims = match decode::<AuthClaims>(
             &token,

@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use actix_http::{header::HeaderMap, StatusCode};
 use actix_web::web;
 use sqlx;
@@ -10,7 +12,7 @@ use crate::{
     AppPool, ResultE,
 };
 
-use super::curriculum_dto::Store;
+use super::curriculum_dto::{Store, Update};
 
 pub struct CurriculumService {
     pool: AppPool,
@@ -113,6 +115,58 @@ impl CurriculumService {
                 StatusCode::BAD_REQUEST,
                 "Something went wrong",
             )),
+        }
+    }
+
+    pub async fn update(
+        &self,
+        headers: &HeaderMap,
+        curriculum_data: Update,
+        curriculum_id: Uuid,
+    ) -> ResultE<Curriculum> {
+        let pool = self.pool.get_ref();
+
+        let token = match Auth::decode_token(headers) {
+            Ok(token) => token,
+            Err(e) => return Err(HttpError::new(StatusCode::BAD_REQUEST, e)),
+        };
+
+        let query = sqlx::query("SELECT * FROM curriculums WHERE id = ($1) AND user_id = ($2)")
+            .bind(curriculum_id)
+            .bind(token.user_id)
+            .fetch_one(pool)
+            .await;
+
+        let curriculum = match query {
+            Ok(curriculum) => Curriculum::from_row(curriculum),
+            Err(_) => {
+                return Err(HttpError::new(
+                    StatusCode::NOT_FOUND,
+                    "Curriculum not found",
+                ))
+            }
+        };
+
+        let query = sqlx::query(
+            "
+                UPDATE curriculums 
+                SET (name, job_title, about, skills) = ($1, $2, $3, $4) 
+                WHERE id = ($5) AND user_id = ($6)
+                RETURNING *
+            ",
+        )
+        .bind(curriculum_data.name)
+        .bind(curriculum_data.job_title)
+        .bind(curriculum_data.about)
+        .bind(curriculum_data.skills)
+        .bind(curriculum.id)
+        .bind(token.user_id)
+        .fetch_one(pool)
+        .await;
+
+        match query {
+            Ok(curriculum) => Ok(Curriculum::from_row(curriculum)),
+            Err(_) => Err(HttpError::new(StatusCode::BAD_REQUEST, "Something went wrong")),
         }
     }
 }
