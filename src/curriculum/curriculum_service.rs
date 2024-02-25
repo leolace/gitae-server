@@ -35,13 +35,13 @@ impl CurriculumService {
 
         let query = sqlx::query(
                 "
-                INSERT INTO curriculums (user_id, github_curriculum_id, name, job_title, about, skills)
+                INSERT INTO curriculums (user_id, github_user_id, name, job_title, about, skills)
                 VALUES ($1, $2, $3, $4, $5, $6)
                 RETURNING *
                 ",
             )
             .bind(user_dto.user_id)
-            .bind(user_dto.github_curriculum_id.parse::<i32>().unwrap())
+            .bind(user_dto.github_user_id)
             .bind(user_dto.name)
             .bind(user_dto.job_title)
             .bind(user_dto.about)
