@@ -27,7 +27,7 @@ impl Curriculum {
         Curriculum {
             id,
             user_id,
-            github_user_id: github_user_id.to_string(),
+            github_user_id,
             name, 
             job_title,
             about,

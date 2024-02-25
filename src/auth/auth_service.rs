@@ -124,7 +124,7 @@ impl AuthService {
             false => return Err(HttpError::new(StatusCode::UNAUTHORIZED, "Token inválido")),
         }
 
-        let user_payload = match Auth::decode_token(token) {
+        let user_payload = match Auth::decode_token(req.headers()) {
             Ok(user_payload) => user_payload,
             Err(e) => return Err(HttpError::new(StatusCode::BAD_REQUEST, e)),
         };

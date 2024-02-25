@@ -1,4 +1,4 @@
-use actix_web::{web, HttpResponse};
+use actix_web::{web, HttpRequest, HttpResponse};
 use sqlx::PgPool;
 use uuid::Uuid;
 
@@ -21,15 +21,18 @@ pub async fn store(body: Option<web::Json<Store>>, pool: web::Data<PgPool>) -> H
 }
 
 pub async fn find_one(
-    curriculum_id: Option<web::Path<(Uuid)>>,
     pool: web::Data<PgPool>,
+    req: HttpRequest,
+    curriculum_id: Option<web::Path<(Uuid)>>,
 ) -> HttpResponse {
     let curriculum_id = match curriculum_id {
         Some(curriculum_id) => curriculum_id.to_owned(),
         None => return HttpResponse::BadRequest().json(ErrorMessage::new("Invalid request")),
     };
 
-    let curriculum = CurriculumService::new(pool).find_one(curriculum_id).await;
+    let curriculum = CurriculumService::new(pool)
+        .find_one(req.headers(), curriculum_id)
+        .await;
 
     match curriculum {
         Ok(d) => HttpResponse::Ok().json(d),

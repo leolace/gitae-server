@@ -1,16 +1,21 @@
+use actix_http::header::HeaderMap;
 use chrono::Local;
 use jsonwebtoken::{decode, encode, Algorithm, DecodingKey, EncodingKey, Header, Validation};
 use serde::{Deserialize, Serialize};
 use std::{env, time::Duration};
 use uuid::Uuid;
 
+use crate::helpers::get_token::get_token;
+
 use super::user::User;
 
-pub struct Auth {}
+pub struct Auth;
 
 impl Auth {
-    pub fn decode_token(token: String) -> Result<AuthClaims, &'static str> {
+    pub fn decode_token(header: &HeaderMap) -> Result<AuthClaims, &'static str> {
         let secret = env::var("SECRET_JWT").unwrap();
+
+        let token = get_token(header).unwrap();
 
         let user_payload: AuthClaims = match decode::<AuthClaims>(
             &token,
