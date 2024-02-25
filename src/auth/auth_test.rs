@@ -60,19 +60,30 @@ mod auth_tests {
     #[actix_web::test]
     async fn me() {
         let mut app = init_test::test::init().await;
-        let signin = SignIn {
+
+        let me_user = SignUp {
+            username: String::from("me_user"),
             email: String::from("teste7661@gmail.com"),
             password: String::from("teste3692"),
         };
 
         let req = TestRequest::post()
-            .uri("/auth/signin")
+            .uri("/auth/signup")
             .insert_header(ContentType::json())
-            .set_json(signin)
+            .set_json(&me_user)
             .to_request();
 
         let resp = test::call_service(&app, req).await;
 
+        let me_user: User = test::read_body_json(resp).await;
+
+        let req = TestRequest::post()
+            .uri("/auth/signin")
+            .insert_header(ContentType::json())
+            .set_json(&me_user)
+            .to_request();
+
+        let resp = test::call_service(&app, req).await;
         let token: AuthPayload = test::read_body_json(resp).await;
 
         let req = TestRequest::get()
@@ -81,6 +92,11 @@ mod auth_tests {
             .to_request();
 
         let resp = test::call_service(&app, req).await;
+
+        TestRequest::delete()
+            .uri(&("/user/".to_owned() + &me_user.id.to_string()))
+            .send_request(&app)
+            .await;
 
         assert!(resp.status().is_success());
     }

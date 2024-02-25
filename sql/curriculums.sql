@@ -1,7 +1,7 @@
 create table if not exists curriculums (
   id uuid default uuid_generate_v4() primary key,
   user_id uuid,
-  github_curriculum_id integer not null,
+  github_user_id varchar(12) not null,
   name varchar(50) not null,
   job_title varchar(50) not null, 
   about text not null default '',
