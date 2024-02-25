@@ -1,11 +1,13 @@
 create table if not exists curriculums (
   id uuid default uuid_generate_v4() primary key,
-  user_id uuid,
-  github_user_id varchar(12) not null,
+  user_id uuid not null,
+  github_user_id varchar(10) not null,
   name varchar(50) not null,
   job_title varchar(50) not null, 
   about text not null default '',
   skills varchar(20)[],
+  updated_at timestamp with time zone default now(),
+  created_at timestamp with time zone default now(),
 
   foreign key (user_id) references users(id) on delete cascade
 );
