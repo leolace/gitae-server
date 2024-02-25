@@ -32,6 +32,10 @@ pub fn curriculum_routes(cfg: &mut web::ServiceConfig) {
             .route(
                 "/{curriculum_id}",
                 web::get().to(curriculum_controller::find_one),
+            )
+            .route(
+                "/{curriculum_id}",
+                web::put().to(curriculum_controller::update),
             ),
     );
 }

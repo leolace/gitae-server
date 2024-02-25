@@ -10,3 +10,11 @@ pub struct Store {
     pub about: String,
     pub skills: Vec<String>,
 }
+
+#[derive(Deserialize, Serialize, Debug, Clone)]
+pub struct Update {
+    pub name: String,
+    pub job_title: String,
+    pub about: String,
+    pub skills: Vec<String>,
+}
